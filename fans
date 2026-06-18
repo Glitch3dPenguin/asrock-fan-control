@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""
+fans - manual fan speed override for testing.
+
+Usage:
+    fans <0-100>   Force all fan headers to the given duty %, manual mode
+    fans auto      Revert the BMC to its normal automatic fan curve
+    fans status    Show raw BMC mode/duty readback plus current temps
+
+IMPORTANT: if gpu-fan-control.service is running, it polls every few
+seconds and will overwrite anything you set here on its next cycle.
+Stop the daemon first if you want a manual value to actually stick:
+
+    sudo systemctl stop gpu-fan-control
+    fans 100
+    ... do your testing ...
+    sudo systemctl start gpu-fan-control      # resumes automatic control
+    # or: fans auto                            # just reverts to BMC default
+
+Note that `fans auto` (or stopping the service) does NOT get
+auto-corrected by anything - the watchdog only intervenes if the
+daemon has genuinely crash-looped (systemd state "failed"), not if
+you've deliberately stopped it. If you stop the service to test and
+forget to restart it, fans will just sit at whatever you last set,
+indefinitely.
+"""
+
+import sys
+
+sys.path.insert(0, "/usr/local/lib/gpu-fan-control")
+import bmc_fan
+
+
+def print_status():
+    try:
+        mode = bmc_fan.read_mode_raw()
+        duty = bmc_fan.read_duty_raw()
+        print(f"Raw mode bytes (0x3a 0xd7): {mode}")
+        print(f"Raw duty bytes (0x3a 0xda): {duty}")
+    except bmc_fan.BmcError as e:
+        print(f"Could not read BMC status: {e}")
+
+
+def main():
+    if len(sys.argv) != 2:
+        print(__doc__)
+        sys.exit(1)
+
+    arg = sys.argv[1].lower()
+
+    if arg in ("-h", "--help"):
+        print(__doc__)
+        return
+
+    if arg == "auto":
+        bmc_fan.set_auto_mode()
+        print("BMC fan mode reverted to automatic.")
+        return
+
+    if arg == "status":
+        print_status()
+        return
+
+    try:
+        pct = int(arg)
+    except ValueError:
+        print(__doc__)
+        sys.exit(1)
+
+    if not 0 <= pct <= 100:
+        print("Duty must be between 0 and 100.")
+        sys.exit(1)
+
+    bmc_fan.set_manual_mode()
+    applied = bmc_fan.set_duty(pct)
+    print(f"All fan headers set to {applied}% (manual mode).")
+    print("If gpu-fan-control.service is running, it will overwrite this within a few seconds.")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except bmc_fan.BmcError as e:
+        print(f"Error talking to BMC: {e}")
+        sys.exit(1)

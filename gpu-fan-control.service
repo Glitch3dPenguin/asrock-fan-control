@@ -1,12 +1,13 @@
 [Unit]
-Description=GPU/CPU Aware Fan Control for ROMED8-2T
-After=network.target
+Description=GPU+CPU aware fan control (ASRock Rack ROMED8-2T / AST2500)
+After=multi-user.target
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /usr/local/bin/gpu_fan_control.py
 Restart=always
 RestartSec=5
+# Needs root to talk to the BMC via ipmitool
 User=root
 
 [Install]

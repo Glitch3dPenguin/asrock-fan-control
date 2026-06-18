@@ -1,0 +1,7 @@
+[Unit]
+Description=Dead-man's switch check for gpu-fan-control.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/bin/gpu_fan_watchdog.py
+User=root
