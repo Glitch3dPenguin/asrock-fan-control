@@ -1,0 +1,13 @@
+[Unit]
+Description=GPU/CPU Aware Fan Control for ROMED8-2T
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/gpu_fan_control.py
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
